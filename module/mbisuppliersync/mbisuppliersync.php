@@ -33,6 +33,11 @@ class Mbisuppliersync extends Module
 
     public function install()
     {
+
+        Configuration::updateValue('MBISUPPLIERSYNC_SUPPLIER_API_BASE_URL', Tools::getShopDomainSsl(true) . __PS_BASE_URI__ . 'module/mbisuppliersync/supplier');
+        Configuration::updateValue('MBISUPPLIERSYNC_SUPPLIER_API_KEY', '');
+
+
         if (!parent::install()) {
             return false;
         }
