@@ -1,0 +1,16 @@
+# OS / IDE
+.DS_Store
+.vscode/
+.idea/
+
+# Logs
+*.log
+
+# Prestashop runtime (si jamais tu copies le core)
+var/
+cache/
+img/
+upload/
+
+# Docker
+**/.docker/

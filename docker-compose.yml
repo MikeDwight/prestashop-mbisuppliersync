@@ -1,0 +1,44 @@
+services:
+  db:
+    image: mariadb:10.6
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: prestashop
+      MYSQL_USER: ps
+      MYSQL_PASSWORD: ps
+    volumes:
+      - dbdata:/var/lib/mysql
+
+  prestashop:
+    image: prestashop/prestashop:8.1
+    depends_on:
+      - db
+    ports:
+      - "8080:80"
+    environment:
+      DB_SERVER: db
+      DB_NAME: prestashop
+      DB_USER: ps
+      DB_PASSWD: ps
+
+      PS_DEV_MODE: 1
+      PS_INSTALL_AUTO: 1
+      PS_DOMAIN: localhost:8080
+      PS_FOLDER_ADMIN: admin-dev
+      PS_FOLDER_INSTALL: install-dev
+
+      # Identifiants BO (démo)
+      ADMIN_MAIL: admin@demo.local
+      ADMIN_PASSWD: admin123
+
+      # Boutique
+      PS_LANGUAGE: fr
+      PS_COUNTRY: FR
+      PS_ENABLE_SSL: 0
+    volumes:
+      - ./module:/var/www/html/modules-local
+      - psdata:/var/www/html
+
+volumes:
+  dbdata:
+  psdata:
