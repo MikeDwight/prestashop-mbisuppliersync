@@ -27,10 +27,28 @@ class MbiSupplierSyncSupplierApiClient
     public function fetchCatalog()
     {
         if ($this->baseUrl === '') {
-            throw new Exception('Supplier API base URL is empty');
+        throw new Exception('Supplier API base URL is empty');
+    }
+
+    // If baseUrl starts with "file://", read local JSON file
+    if (strpos($this->baseUrl, 'file://') === 0) {
+        $path = substr($this->baseUrl, 7);
+        $raw = @file_get_contents($path);
+        if ($raw === false) {
+            throw new Exception('Unable to read supplier file: ' . $path);
         }
 
-        $url = $this->baseUrl . '/v1/catalog/stock-price';
+        $decoded = json_decode($raw, true);
+        if (!is_array($decoded)) {
+            throw new Exception('Supplier file contains invalid JSON');
+        }
+
+        return $this->normalize($decoded);
+    }
+
+    // HTTP mode (kept for later)
+    $url = $this->baseUrl;
+
 
         $ch = curl_init();
         if ($ch === false) {

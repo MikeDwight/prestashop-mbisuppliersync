@@ -81,77 +81,23 @@ class AdminMbiSupplierSyncController extends ModuleAdminController
     public function postProcess()
 {
     if (Tools::isSubmit('submitMbiSupplierSyncRun')) {
-        try {
-            $start = microtime(true);
+    require_once _PS_MODULE_DIR_ . 'mbisuppliersync/classes/Service/SupplierApiClient.php';
+    require_once _PS_MODULE_DIR_ . 'mbisuppliersync/classes/Service/SupplierSyncService.php';
 
-            // 1) Création du run
-            Db::getInstance()->insert('mbisuppliersync_run', [
-                'started_at'    => date('Y-m-d H:i:s'),
-                'ended_at'      => date('Y-m-d H:i:s'),
-                'status'        => 'partial',
-                'items_total'   => 3,
-                'items_updated' => 1,
-                'items_failed'  => 1,
-                'message'       => 'Simulation Étape 2 : aucune API appelée',
-                'execution_ms'  => 0,
-            ]);
+    $service = new MbiSupplierSyncSupplierSyncService($this->module);
+    $result = $service->runSync('bo');
 
-            $idRun = (int) Db::getInstance()->Insert_ID();
-
-            // 2) Items mockés
-            $now = date('Y-m-d H:i:s');
-
-            Db::getInstance()->insert('mbisuppliersync_run_item', [
-                'id_run'      => $idRun,
-                'sku'         => 'SKU-TEST-001',
-                'id_product'  => 1,
-                'old_stock'   => 10,
-                'new_stock'   => 12,
-                'old_price'   => 19.90,
-                'new_price'   => 18.50,
-                'status'      => 'updated',
-                'created_at'  => $now,
-            ]);
-
-            Db::getInstance()->insert('mbisuppliersync_run_item', [
-                'id_run'      => $idRun,
-                'sku'         => 'SKU-TEST-002',
-                'id_product'  => null,
-                'status'      => 'skipped',
-                'created_at'  => $now,
-            ]);
-
-            Db::getInstance()->insert('mbisuppliersync_run_item', [
-                'id_run'         => $idRun,
-                'sku'            => 'SKU-TEST-003',
-                'status'         => 'error',
-                'error_code'     => 'PRODUCT_NOT_FOUND',
-                'error_message'  => 'Produit introuvable dans Prestashop',
-                'created_at'     => $now,
-            ]);
-
-            // 3) Durée réelle
-            $executionMs = (int) ((microtime(true) - $start) * 1000);
-            Db::getInstance()->update(
-                'mbisuppliersync_run',
-                ['execution_ms' => $executionMs],
-                'id_run = ' . (int) $idRun
-            );
-
-            $this->confirmations[] = sprintf(
-                'Simulation lancée avec succès. Run #%d créé.',
-                $idRun
-            );
-        } catch (Exception $e) {
-            PrestaShopLogger::addLog(
-                'MBI Supplier Sync – erreur simulation : ' . $e->getMessage(),
-                3
-            );
-            $this->errors[] = 'Erreur lors de la création du run de simulation.';
-        }
+    if ($result['status'] === 'success') {
+        $this->confirmations[] = $result['message'];
+    } elseif ($result['status'] === 'partial') {
+        $this->warnings[] = $result['message'];
+    } else {
+        $this->errors[] = $result['message'];
     }
+}
 
-    parent::postProcess();
+parent::postProcess();
+
 }
 
 }

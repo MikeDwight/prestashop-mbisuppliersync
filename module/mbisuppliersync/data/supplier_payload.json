@@ -1,0 +1,10 @@
+{
+  "supplier": "MBI-DEMO-SUPPLIER",
+  "generated_at": "2026-01-16T18:00:00Z",
+  "currency": "EUR",
+  "items": [
+    { "sku": "ABC-001", "qty": 12, "price": 19.90, "updated_at": "2026-01-16T18:00:00Z" },
+    { "sku": "ABC-002", "qty": 0,  "price": 5.50,  "updated_at": "2026-01-16T18:00:00Z" },
+    { "sku": "UNKNOWN-SKU", "qty": 3, "price": 9.99, "updated_at": "2026-01-16T18:00:00Z" }
+  ]
+}
