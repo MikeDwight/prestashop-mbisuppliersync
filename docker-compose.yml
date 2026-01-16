@@ -36,7 +36,7 @@ services:
       PS_COUNTRY: FR
       PS_ENABLE_SSL: 0
     volumes:
-      - ./module:/var/www/html/modules-local
+      - ./module/mbisuppliersync:/var/www/html/modules/mbisuppliersync
       - psdata:/var/www/html
 
 volumes:
