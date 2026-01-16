@@ -78,26 +78,30 @@ class AdminMbiSupplierSyncController extends ModuleAdminController
         $this->setTemplate('runs.tpl');
     }
 
-    public function postProcess()
+public function postProcess()
 {
-    if (Tools::isSubmit('submitMbiSupplierSyncRun')) {
-    require_once _PS_MODULE_DIR_ . 'mbisuppliersync/classes/Service/SupplierApiClient.php';
-    require_once _PS_MODULE_DIR_ . 'mbisuppliersync/classes/Service/SupplierSyncService.php';
+    if (Tools::isSubmit('submitMbiSupplierSyncRun') || Tools::isSubmit('submitMbiSupplierSyncDryRun')) {
+        require_once _PS_MODULE_DIR_ . 'mbisuppliersync/classes/Service/SupplierApiClient.php';
+        require_once _PS_MODULE_DIR_ . 'mbisuppliersync/classes/Service/SupplierSyncService.php';
 
-    $service = new MbiSupplierSyncSupplierSyncService($this->module);
-    $result = $service->runSync('bo');
+        $isDryRun = Tools::isSubmit('submitMbiSupplierSyncDryRun');
 
-    if ($result['status'] === 'success') {
-        $this->confirmations[] = $result['message'];
-    } elseif ($result['status'] === 'partial') {
-        $this->warnings[] = $result['message'];
-    } else {
-        $this->errors[] = $result['message'];
+        $service = new MbiSupplierSyncSupplierSyncService($this->module);
+
+        // IMPORTANT: on passe une option dry_run (à ajouter dans le service à l’étape 4.3)
+        $result = $service->runSync('bo', ['dry_run' => $isDryRun]);
+
+        if ($result['status'] === 'success') {
+            $this->confirmations[] = $result['message'];
+        } elseif ($result['status'] === 'partial') {
+            $this->warnings[] = $result['message'];
+        } else {
+            $this->errors[] = $result['message'];
+        }
     }
+
+    parent::postProcess();
 }
 
-parent::postProcess();
-
-}
 
 }

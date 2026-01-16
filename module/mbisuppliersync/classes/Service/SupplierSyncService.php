@@ -16,12 +16,16 @@ class MbiSupplierSyncSupplierSyncService
      * @param string $trigger "bo" or "cron"
      * @return array
      */
-    public function runSync($trigger = 'bo')
+    public function runSync(string $source, array $options = [])
+
     {
+        $dryRun = !empty($options['dry_run']);
+
         $startedAt = microtime(true);
 
         // 1) Create run (running)
-        $runId = $this->createRun($trigger);
+        $runId = $this->createRun($source, $dryRun);
+
 
         try {
             // 2) Fetch API payload
@@ -41,19 +45,24 @@ class MbiSupplierSyncSupplierSyncService
 
             $updated = 0;
             $failed = 0;
+            $ignored = 0;
 
             // Update totals early
             $this->updateRunTotals($runId, $total, 0, 0);
 
             // 3) Loop items
             foreach ($items as $row) {
-                $result = $this->processItem($runId, $row);
+                $result = $this->processItem($runId, $row, $dryRun);
+
 
                 if ($result['status'] === 'success') {
-                    $updated++;
-                } else {
-                    $failed++;
-                }
+                      $updated++;
+                  } elseif ($result['status'] === 'ignored') {
+                      $ignored++;
+                  } else {
+                      $failed++;
+                  }
+
 
                 // Update counters as we go (simple & traceable)
                 $this->updateRunTotals($runId, $total, $updated, $failed);
@@ -68,7 +77,8 @@ class MbiSupplierSyncSupplierSyncService
             }
 
             $executionMs = (int) round((microtime(true) - $startedAt) * 1000);
-            $message = sprintf('Completed: total=%d, updated=%d, failed=%d', $total, $updated, $failed);
+            $message = sprintf('Completed: total=%d, updated=%d, ignored=%d, failed=%d', $total, $updated, $ignored, $failed);
+
 
             $this->finalizeRun($runId, $status, $message, $executionMs);
 
@@ -96,22 +106,46 @@ class MbiSupplierSyncSupplierSyncService
         }
     }
 
-    private function processItem($runId, array $row)
+    private function processItem($runId, array $row, $dryRun)
+
     {
         $sku = isset($row['sku']) ? trim((string) $row['sku']) : '';
         $qty = isset($row['qty']) ? (int) $row['qty'] : 0;
         $price = isset($row['price']) ? (float) $row['price'] : 0.0;
 
-        if ($sku === '' || $qty < 0 || $price < 0) {
-            $this->createRunItem([
-                'id_run' => $runId,
-                'sku' => $sku,
-                'status' => 'error',
-                'error_code' => 'INVALID_DATA',
-                'error_message' => 'Invalid sku / qty / price',
-            ]);
-            return ['status' => 'failed'];
-        }
+        if ($sku === '') {
+          $this->createRunItem([
+              'id_run' => $runId,
+              'sku' => $sku,
+              'status' => 'error',
+              'error_code' => 'INVALID_DATA',
+              'error_message' => 'Missing sku',
+          ]);
+          return ['status' => 'failed'];
+      }
+
+      if ($qty < 0) {
+          $this->createRunItem([
+              'id_run' => $runId,
+              'sku' => $sku,
+              'status' => 'ignored',
+              'error_code' => 'NEGATIVE_STOCK',
+              'error_message' => 'Negative stock ignored',
+          ]);
+          return ['status' => 'ignored'];
+      }
+
+      if ($price <= 0) {
+          $this->createRunItem([
+              'id_run' => $runId,
+              'sku' => $sku,
+              'status' => 'ignored',
+              'error_code' => 'INVALID_PRICE',
+              'error_message' => 'Wholesale price <= 0 ignored',
+          ]);
+          return ['status' => 'ignored'];
+      }
+
 
        
 
@@ -145,10 +179,13 @@ class MbiSupplierSyncSupplierSyncService
             $oldStock = (int) StockAvailable::getQuantityAvailableByProduct($idProduct);
             $oldPrice = (float) $product->wholesale_price;
 
-            // Apply updates
-            StockAvailable::setQuantity($idProduct, 0, $qty);
-            $product->wholesale_price = (float) number_format($price, 2, '.', '');
-            $product->update();
+            $newWholesale = (float) number_format($price, 2, '.', '');
+
+            if (!$dryRun) {
+                StockAvailable::setQuantity($idProduct, 0, $qty);
+                $product->wholesale_price = $newWholesale;
+                $product->update();
+            }
 
             $this->createRunItem([
                 'id_run' => $runId,
@@ -157,7 +194,7 @@ class MbiSupplierSyncSupplierSyncService
                 'old_stock' => $oldStock,
                 'new_stock' => $qty,
                 'old_price' => $oldPrice,
-                'new_price' => (float) $product->wholesale_price,
+                'new_price' => $newWholesale,
                 'status' => 'updated',
             ]);
 
@@ -198,18 +235,20 @@ private function findProductIdBySku($sku)
     /**
      * Insert run row (aligned with your table schema)
      */
-    private function createRun($trigger)
+    private function createRun($source, $dryRun)
+
     {
         $now = date('Y-m-d H:i:s');
 
         Db::getInstance()->insert('mbisuppliersync_run', [
+            'dry_run' => (int) ($dryRun ? 1 : 0),
             'started_at' => pSQL($now),
             'ended_at' => null,
             'status' => pSQL('running'),
             'items_total' => 0,
             'items_updated' => 0,
             'items_failed' => 0,
-            'message' => pSQL('Run started (trigger=' . $trigger . ')'),
+            'message' => pSQL('Run started (source=' . $source . ', dry_run=' . ($dryRun ? '1' : '0') . ')'),
             'execution_ms' => 0,
         ]);
 

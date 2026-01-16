@@ -2,13 +2,14 @@
   <h3>MBI — Supplier Sync</h3>
 
   <form method="post" style="margin-bottom: 15px;">
-  <button
-    type="submit"
-    name="submitMbiSupplierSyncRun"
-    class="btn btn-primary"
-  >
-    Lancer une synchronisation (simulation)
-  </button>
+  <button type="submit" name="submitMbiSupplierSyncRun" class="btn btn-primary">
+  Lancer une synchronisation
+</button>
+
+<button type="submit" name="submitMbiSupplierSyncDryRun" class="btn btn-default">
+  Lancer une synchronisation (simulation)
+</button>
+
 </form>
 
   <p>
